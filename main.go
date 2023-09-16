@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
@@ -14,9 +15,11 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const scrapeLimit = 10
+
 type apiConfig struct {
 
-	// will hold connection with database 
+	// will hold connection with database
 	DB *database.Queries
 }
 
@@ -44,6 +47,8 @@ func main() {
 	apiCfg := apiConfig{
 		DB: queries,
 	}
+
+	go startScraping(apiCfg.DB, scrapeLimit, 10*time.Minute)
 
 	router := chi.NewRouter()
 
