@@ -55,11 +55,14 @@ func scrapeFeed(wg *sync.WaitGroup, db *database.Queries, feed database.Feed) {
 		return
 	}
 
+	newPosts := len(rssFeed.Channel.Item)
+
 	for _, item := range rssFeed.Channel.Item {
 
 		pubAt, err := time.Parse(time.RFC1123, item.PubDate)
 		if err != nil {
 			log.Printf("couldn't parse date %v: %v\n", item.PubDate, err)
+			newPosts--
 			continue
 		}
 
@@ -78,13 +81,14 @@ func scrapeFeed(wg *sync.WaitGroup, db *database.Queries, feed database.Feed) {
 		)
 
 		if err != nil {
+			newPosts--
 			if strings.Contains(err.Error(), "duplicate key") {
 				continue
 			}
 			log.Println("couldn't create a post:", err)
 		}
 	}
-	log.Printf("Have been collected a feed %v, %v posts found", feed.Name, len(rssFeed.Channel.Item))
+	log.Printf("Have been collected a feed %v, %v posts found", feed.Name, newPosts)
 }
 
 func makeNullString(s string) sql.NullString {

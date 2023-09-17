@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +11,10 @@ import (
 	"github.com/strCarne/rssaggregator/internal/database"
 )
 
-func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request)  {
-	type parameters struct { 
+const fetchLimit = 10
+
+func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
 		Name string `json:"name"`
 	}
 
@@ -25,10 +28,10 @@ func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Reques
 	}
 
 	user, err := apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		ID: uuid.New(),
+		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		Name: params.Name,
+		Name:      params.Name,
 	})
 
 	if err != nil {
@@ -39,6 +42,22 @@ func (apiCfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusCreated, databaseUserToUser(user))
 }
 
-func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user database.User)  {
+func (apiCfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request, user database.User) {
 	respondWithJSON(w, http.StatusOK, databaseUserToUser(user))
+}
+
+func (apiCfg *apiConfig) handlerGetUsersPosts(w http.ResponseWriter, r *http.Request, user database.User) {
+	dbPosts, err := apiCfg.DB.GetUsersPosts(
+		context.Background(),
+		database.GetUsersPostsParams{
+			UserID: user.ID,
+			Limit:  fetchLimit,
+		},
+	)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("couldn't get posts: %v", err))
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, databasePostsToPosts(dbPosts))
 }

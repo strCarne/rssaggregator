@@ -54,3 +54,48 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	)
 	return i, err
 }
+
+const getUsersPosts = `-- name: GetUsersPosts :many
+SELECT p.id, p.created_at, p.updated_at, p.title, p.description, p.published_at, p.url, p.feed_id FROM posts AS p
+JOIN feed_follows AS f ON p.feed_id = f.feed_id
+WHERE f.user_id = $1
+ORDER BY p.published_at DESC
+LIMIT $2
+`
+
+type GetUsersPostsParams struct {
+	UserID uuid.UUID
+	Limit  int32
+}
+
+func (q *Queries) GetUsersPosts(ctx context.Context, arg GetUsersPostsParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersPosts, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Description,
+			&i.PublishedAt,
+			&i.Url,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
